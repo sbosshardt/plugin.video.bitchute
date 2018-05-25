@@ -1,0 +1,11 @@
+created by celadoor.
+Version 0.0.9 -add latest category
+
+Version 0.0.7 -Redone for site changes
+
+Version 0.0.5 -Added Video Categories
+
+Version 0.0.4 -Initial Release. Plays all the latest BitChute videos.
+
+
+
