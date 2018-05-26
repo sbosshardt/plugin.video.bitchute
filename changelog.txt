@@ -1,4 +1,22 @@
-created by celadoor.
+[Version 1.0.0]
+
+Latest has been separated into All/Popular/Trending. Other miscellaneous improvements made.
+
+- Support for Python debugging with pydevd.
+  -- Debug can be enabled, parameters can be changed with Kodi's Add-On configuration UI.
+  -- Debugging can be performed either on the same or on a remote host.
+  -- For more info on Kodi add-on debugging, see https://kodi.wiki/view/Add-on_development
+
+- Fixed bug where video listings were taking the user to a sub-directory with a single listing (as opposed to starting playback).
+
+-----
+
+Imported source code from plugin.video.bitchute.zip file created by celadoor.
+Orignal zip file available at: https://github.com/celadoor/celadoor.github.io/blob/9cd9404a518e372aa7424824e56c929a2deed657/plugin.video.bitchute.zip?raw=true
+Zip file's sha256sum: 11d7a9c67baa827f1ee3833ee8d6dc0d2067128b25a0c429b988914043d3509f
+
+-----
+
 Version 0.0.9 -add latest category
 
 Version 0.0.7 -Redone for site changes
@@ -6,6 +24,3 @@ Version 0.0.7 -Redone for site changes
 Version 0.0.5 -Added Video Categories
 
 Version 0.0.4 -Initial Release. Plays all the latest BitChute videos.
-
-
-
