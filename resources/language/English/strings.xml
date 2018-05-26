@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <strings>
-<string id="30011">BitChute is a peer to peer video sharing platform. Its mission is to put people and free speech first. It's free to join and create and upload your own videos to share with others.</string>
+	<string id="30011">BitChute is a peer to peer video sharing platform. Its mission is to put people and free speech first. It's free to join and create and upload your own videos to share with others.</string>
+	<string id="30012">Debugger Settings</string>
+	<string id="30013">Enable debugging</string>
+	<string id="30014">Hostname or IP Address to connect to</string>
+	<string id="30015">Port number</string>
+	<string id="30016">Path where pysrc is located (if not already in PYTHONPATH)</string>
 </strings>

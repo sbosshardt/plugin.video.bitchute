@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<settings>
+    <category label="30012">
+        <setting id="remote_debugger" type="bool" label="30013" default="false"/>
+        <setting id="remote_debugger_host" type="text" label="30014" default="localhost"/>
+        <setting id="remote_debugger_port" type="number" label="30015" default="5678"/>
+        <setting id="pysrc_path" type="text" label="30016" default=""/>
+    </category>
+</settings>

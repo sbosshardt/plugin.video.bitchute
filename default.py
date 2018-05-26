@@ -1,15 +1,74 @@
+import sys
+import xbmcaddon
+addon = xbmcaddon.Addon('plugin.video.bitchute')
+
+
+# Connect to a debugger (local or remote) if remote_debugger is "true" in addon.xml.
+remote_debugger = False
+remote_debugger_host = "localhost"
+remote_debugger_port = 5678
+pysrc_path = ""
+
+try:
+    remote_debugger = addon.getSetting('remote_debugger')
+    print "Value of remote_debugger is: " + remote_debugger
+except:
+    pass
+
+try:
+    remote_debugger_host = addon.getSetting('remote_debugger_host')
+    print "Value of remote_debugger_host is: " + remote_debugger_host
+except:
+    pass
+
+try:
+    remote_debugger_port = addon.getSetting('remote_debugger_port')
+    remote_debugger_port = int(remote_debugger_port)
+    print "Value of remote_debugger_port is: " + remote_debugger_port
+except:
+    pass
+
+try:
+    pysrc_path = addon.getSetting('pysrc_path')
+    print "Value of pysrc_path is: " + pysrc_path
+except:
+    pass
+
+# append pydev remote debugger
+if remote_debugger == "true":
+    if pysrc_path != "":
+        try:
+            sys.path.append(pysrc_path);
+        except:
+            print "Unable to append pysrc_path \"" + pysrc_path + "\"."
+            pass
+    
+    # Make pydev debugger works for auto reload.
+    # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
+    try:
+        import pysrc.pydevd as pydevd # with the addon script.module.pydevd, only use `import pydevd`
+    except:
+        try:
+            import pydevd
+        except ImportError:
+            sys.stderr.write("Error: Debugging could not be enabled." +
+            "Unable to determine directory where org.python.pydev.debug.pysrc is stored. " +
+            "Please add this path either to your PYTHONPATH, or in the \"pysrc_path\" setting in addon.xml. " +
+            "If you are not sure where this is, try searching your computer for a \"pysrc\" directory.")
+            sys.exit(1)
+    
+    # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse console
+    pydevd.settrace(host=remote_debugger_host, stdoutToServer=True, stderrToServer=True, port=remote_debugger_port)
+
+
 # -*- coding: cp1252 -*-
 from bs4 import BeautifulSoup
-import urllib,urllib2,re,xbmcplugin,xbmcgui
-import xbmcaddon
-import sys
+import urllib,urllib2,re,xbmcplugin,xbmcgui,xbmc
 
 # Set default encoding to 'UTF-8' instead of 'ascii'
 reload(sys)
 sys.setdefaultencoding("UTF8")
 
-
-addon = xbmcaddon.Addon('plugin.video.bitchute')
 __language__  = addon.getLocalizedString
 __icon__ = addon.getAddonInfo('icon')
 __fanart__ = addon.getAddonInfo('fanart')
@@ -21,7 +80,9 @@ headers = [['User-Agent', 'Mozilla/5.0 (X11; Linux x86_64; rv:49.0) Gecko/201001
 def CATEGORIES():
 
 #Video categories on Main Page
-    addDir('Latest','New',1,__icon__)
+    addLink('Latest - All','listing-all',1,__icon__,True)
+    addLink('Latest - Popular','listing-popular',1,__icon__,True)
+    addLink('Latest - Trending','listing-trending',1,__icon__,True)
     req = urllib2.Request("http://www.bitchute.com/")
     for header in headers:
         req.add_header(*header)
@@ -42,11 +103,10 @@ def CATEGORIES():
 
     iconImage='DefaultVideo.png'
     for link in links:
-        addDir(link[link.index("/category/")+10:].title(),link,2,iconImage)
+        addLink(link[link.index("/category/")+10:].title(),link,2,iconImage,True)
         
-def NEWVIDS():
-#
-#Latest Videos on Main Page
+def LATESTVIDS(url):
+    #Latest Videos on Main Page
     req = urllib2.Request("https://www.bitchute.com/")
     for header in headers:
         req.add_header(*header)
@@ -55,7 +115,8 @@ def NEWVIDS():
     soup = BeautifulSoup(bodyx, "html.parser")
 
     links = {}
-    for link in soup.find_all('a'):
+    # note: url variable is actually storing an HTML element id
+    for link in soup.select('#'+url+' a'):
         href = link.get('href')
         className = link.get('class')
         if href and href.startswith('/video'):
@@ -88,7 +149,7 @@ def NEWVIDS():
         if thumbnail == None:
             thumbnail = __icon__
         linkToURL = link[0] if link[0][0] != "/" else "https://www.bitchute.com"+link[0]
-        addDir(link[1]["name"].encode("utf8"),linkToURL.encode("utf8"),3,thumbnail)
+        addLink(link[1]["name"].encode("utf8"),linkToURL.encode("utf8"),3,thumbnail,False)
               
 def INDEX(url):
     req = urllib2.Request(url)
@@ -132,10 +193,10 @@ def INDEX(url):
         if thumbnail == None:
             thumbnail = __icon__
         linkToURL = link[0] if link[0][0] != "/" else "https://www.bitchute.com"+link[0]
-        addDir(link[1]["name"].encode("utf8"),linkToURL.encode("utf8"),3,thumbnail)
+        addLink(link[1]["name"].encode("utf8"),linkToURL.encode("utf8"),3,thumbnail,False)
 
 
-def VIDEOLINKS(url,name):
+def VIDEOLINKS(url,name,icon):
         req = urllib2.Request(url)
         for header in headers:
             req.add_header(*header)
@@ -146,10 +207,13 @@ def VIDEOLINKS(url,name):
         if len(match) == 0:
             match += re.compile(r'<source src="(.+?)"(?:\s*)\/?>').findall(link)
         for url in match:
-                addLink(name,url,__icon__)
+            playLink(name,url,icon)
+            break
         
 
                 
+# Examples of sys.argv:
+# ['plugin://plugin.video.bitchute/', '4', '?mode=2&name=Music&url=https%3a%2f%2fwww.bitchute.com%2fcategory%2fmusic']
 def get_params():
         param=[]
         paramstring=sys.argv[2]
@@ -171,20 +235,22 @@ def get_params():
 
 
 
-def addLink(name,url,iconimage):
+def playLink(name,url,iconimage):
         ok=True
         liz=xbmcgui.ListItem(name, iconImage="DefaultVideo.png", thumbnailImage=iconimage)
         liz.setInfo( type="Video", infoLabels={ "Title": name } )
-        ok=xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=liz)
+        #ok=xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=liz)
+        player = xbmc.Player()
+        player.play(url, liz);
         return ok
 
 
-def addDir(name,url,mode,iconimage):
+def addLink(name,url,mode,iconimage,isfolder):
         u=sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+str(mode)+"&name="+urllib.quote_plus(name)
         ok=True
         liz=xbmcgui.ListItem(name, iconImage="DefaultFolder.png", thumbnailImage=iconimage)
         liz.setInfo( type="Video", infoLabels={ "Title": name} )
-        ok=xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=True)
+        ok=xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=isfolder)
         return ok
         
               
@@ -216,7 +282,7 @@ if mode==None or url==None or len(url)<1:
         
 elif mode==1:
         print ""
-        NEWVIDS()
+        LATESTVIDS(url)
        
 elif mode==2:
         print ""+url
@@ -224,7 +290,7 @@ elif mode==2:
        
 elif mode==3:
         print ""+url
-        VIDEOLINKS(url,name)
+        VIDEOLINKS(url,name,__icon__)
 else:
         print ""+url
         CATEGORIES()
