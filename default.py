@@ -78,21 +78,19 @@ headers = [['User-Agent', 'Mozilla/5.0 (X11; Linux x86_64; rv:49.0) Gecko/201001
     ['Accept','text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8']]
 
 def CATEGORIES():
-
-#Video categories on Main Page
-    addLink('Latest - All','listing-all',1,__icon__,True)
-    addLink('Latest - Popular','listing-popular',1,__icon__,True)
-    addLink('Latest - Trending','listing-trending',1,__icon__,True)
+    #Video categories on Main Page
+    iconImage='DefaultVideo.png'
+    addLink('Latest - All','listing-all',1,iconImage,True)
+    addLink('Latest - Popular','listing-popular',1,iconImage,True)
+    addLink('Latest - Trending','listing-trending',1,iconImage,True)
     req = urllib2.Request("http://www.bitchute.com/")
     for header in headers:
         req.add_header(*header)
     url = urllib2.urlopen(req)
     body = url.read()
-
     soup = BeautifulSoup(body, "html.parser")
     
     links = {}
-    
     for link in soup.find_all('li'):
         for link2 in link.find_all('a'):
              href = link2.get('href')
@@ -101,10 +99,10 @@ def CATEGORIES():
              if "/category/" in href:
                  links[href] = {}
 
-    iconImage='DefaultVideo.png'
     for link in links:
         addLink(link[link.index("/category/")+10:].title(),link,2,iconImage,True)
-        
+
+
 def LATESTVIDS(url):
     #Latest Videos on Main Page
     req = urllib2.Request("https://www.bitchute.com/")
@@ -116,41 +114,81 @@ def LATESTVIDS(url):
 
     links = {}
     # note: url variable is actually storing an HTML element id
-    for link in soup.select('#'+url+' a'):
-        href = link.get('href')
-        className = link.get('class')
-        if href and href.startswith('/video'):
-            if className and 'btn' in className:
-                continue
-            children = link.find_all('img',{'class':'img-responsive'})
-            if link.parent.name.lower() == "img":
-                if "img-responsive" in link.parent.get('class'):
-                    children += link.parent.parent.find_all('img',{'class':'img-responsive'})
-            for child in children:
-                if href not in links:
-                    links[href] = {}
-                child_data_src = child.get("data-src")
-                if child_data_src and "play-button" not in child_data_src and "thumbnail" not in links[href]:
-                    links[href]["thumbnail"] = child_data_src
-                childsrc = child.get("src")
-                if "play-button.png" not in childsrc and "thumbnail" not in links[href]:
-                    links[href]["thumbnail"] = childsrc
-            if len(children) == 0:
-                if href not in links:
-                    links[href] = {}
-                links[href]["name"] = link.contents[0].strip("\n").strip()
-    links2 = []
-    for index, link in enumerate(links.iteritems()):
+    if url == "listing-trending":
+        vidcontainers = soup.select('#'+url+' div.video-trending-container')
+        videos = PARSE_TRENDING_VIDEO_CONTAINERS(vidcontainers)
+    else:
+        vidcards = soup.select('#'+url+' div.video-card')
+        videos = PARSE_POPULAR_VIDEO_CARDS(vidcards)
+
+    for index, video in enumerate(videos):
         if index >= 60:
             break
-        thumbnail = None if "thumbnail" not in link[1] else link[1]["thumbnail"]
-        if thumbnail != None and thumbnail[0] == "/":
-            thumbnail = "https://www.bitchute.com"+thumbnail
-        if thumbnail == None:
-            thumbnail = __icon__
-        linkToURL = link[0] if link[0][0] != "/" else "https://www.bitchute.com"+link[0]
-        addLink(link[1]["name"].encode("utf8"),linkToURL.encode("utf8"),3,thumbnail,False)
-              
+        addLink(video["name"], video["url"], 3, video["thumbnail"], False)
+
+
+def PARSE_TRENDING_VIDEO_CONTAINERS(vidcontainers):
+    urlprefix = ("https://www.bitchute.com").encode("utf8")
+    videos = []
+    for container in vidcontainers:
+        video = {}
+        # The first link is to the video and has the title.
+        titlelinks = container.select(".video-trending-title a")
+        titlelinktag = titlelinks[0]
+        video["name"] = titlelinktag.string.encode("utf8")
+        video["url"] = urlprefix + titlelinktag["href"].encode("utf8")
+        thumbnailtagarray = container.select(".video-trending-image img")
+        video["thumbnail"] = __icon__
+        if thumbnailtagarray:
+            video["thumbnail"] = thumbnailtagarray[0]["data-src"].encode("utf8")
+            if video["thumbnail"] == "/":
+                video["thumbnail"] = urlprefix + video["thumbnail"]
+        try:
+            duration_str = vidcontainer.select("span.video-duration")[0].string
+            duration = CONVERT_DURATION_STRING_TO_SECONDS(duration_str)
+            video["duration"] = duration
+        except:
+            pass
+        # TODO: Scrape more metadata that's available in the HTML
+        #video["playcount"]
+        #video["studio"] # Channel
+        #video["year"]
+        #video["date"]
+        #video["plotoutline"]
+        videos.append(video)
+    return videos
+
+
+def PARSE_POPULAR_VIDEO_CARDS(vidcontainers):
+    urlprefix = ("https://www.bitchute.com").encode("utf8")
+    videos = []
+    for vidcontainer in vidcontainers:
+        video = {}
+        # The first link is to the video and has the title.
+        titlelinks = vidcontainer.select(".video-card-text a")
+        titlelinktag = titlelinks[0]
+        video["name"] = titlelinktag.string.encode("utf8")
+        video["url"] = urlprefix + titlelinktag["href"].encode("utf8")
+        thumbnailtagarray = vidcontainer.select("img[alt='video image']")
+        video["thumbnail"] = __icon__
+        if thumbnailtagarray:
+            video["thumbnail"] = thumbnailtagarray[0]["data-src"].encode("utf8")
+            if video["thumbnail"] == "/":
+                video["thumbnail"] = urlprefix + video["thumbnail"]
+        try:
+            duration_str = vidcontainer.select("span.video-duration")[0].string
+            duration = CONVERT_DURATION_STRING_TO_SECONDS(duration_str)
+            video["duration"] = duration
+        except:
+            pass
+        videos.append(video)
+    return videos
+
+
+def CONVERT_DURATION_STRING_TO_SECONDS(duration_str):
+    # TODO: convert h:m:s strings to integers representing seconds
+    return duration_str
+
 def INDEX(url):
     req = urllib2.Request(url)
     for header in headers:
@@ -187,13 +225,20 @@ def INDEX(url):
     for index, link in enumerate(links.iteritems()):
         if index >= 60:
             break
-        thumbnail = None if "thumbnail" not in link[1] else link[1]["thumbnail"]
+        if "thumbnail" in link[1]:
+            thumbnail = link[1]["thumbnail"]
         if thumbnail != None and thumbnail[0] == "/":
             thumbnail = "https://www.bitchute.com"+thumbnail
         if thumbnail == None:
             thumbnail = __icon__
         linkToURL = link[0] if link[0][0] != "/" else "https://www.bitchute.com"+link[0]
-        addLink(link[1]["name"].encode("utf8"),linkToURL.encode("utf8"),3,thumbnail,False)
+        try:
+            link[1]
+            if "name" in link[1]:
+                addLink(link[1]["name"].encode("utf8"),linkToURL.encode("utf8"),3,thumbnail,False)
+                thumbnail = None;
+        except:
+            pass
 
 
 def VIDEOLINKS(url,name,icon):
@@ -209,9 +254,8 @@ def VIDEOLINKS(url,name,icon):
         for url in match:
             playLink(name,url,icon)
             break
-        
 
-                
+
 # Examples of sys.argv:
 # ['plugin://plugin.video.bitchute/', '4', '?mode=2&name=Music&url=https%3a%2f%2fwww.bitchute.com%2fcategory%2fmusic']
 def get_params():
@@ -234,7 +278,6 @@ def get_params():
 
 
 
-
 def playLink(name,url,iconimage):
         ok=True
         liz=xbmcgui.ListItem(name, iconImage="DefaultVideo.png", thumbnailImage=iconimage)
@@ -252,8 +295,8 @@ def addLink(name,url,mode,iconimage,isfolder):
         liz.setInfo( type="Video", infoLabels={ "Title": name} )
         ok=xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=isfolder)
         return ok
-        
-              
+
+
 params=get_params()
 url=None
 name=None
